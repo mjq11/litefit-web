@@ -3,13 +3,18 @@
    ========================================================================== */
 
 // 1. 全局状态 State
+let appState = {
+    accounts: [],
+    currentAccountId: ''
+};
+
 let state = {
     profile: {
         gender: 'male',
         age: 25,
         height: 175,
-        weight: 75.0,
-        targetWeight: 68.0,
+        weight: 70.0,
+        targetWeight: 65.0,
         activity: 1.375, // 轻度运动
         speed: 500, // 标准减脂 (每日热量缺口 500 kcal)
         budget: 1800 // 默认预算卡路里
@@ -38,7 +43,7 @@ let calorieChartInstance = null;
 // 断食倒计时定时器
 let fastingTimerInterval = null;
 
-// 2. 初始化演示数据 (让用户在第一次打开应用时看到精美的图表效果)
+// 2. 初始化演示数据 (保持纯净空状态)
 function initDemoData() {
     state.logs = []; // 初始无记录，保持纯净空状态
     state.water = { current: 0, target: 2000 };
@@ -50,27 +55,119 @@ function initDemoData() {
 
 // 3. 数据持久化 (LocalStorage)
 function saveStateToLocalStorage() {
-    localStorage.setItem('litefit_state', JSON.stringify(state));
+    // 找到当前账号在 appState.accounts 中的索引
+    const idx = appState.accounts.findIndex(acc => acc.id === appState.currentAccountId);
+    if (idx !== -1) {
+        // 深拷贝保存 state 数据到 appState
+        appState.accounts[idx].profile = JSON.parse(JSON.stringify(state.profile));
+        appState.accounts[idx].water = JSON.parse(JSON.stringify(state.water));
+        appState.accounts[idx].fasting = JSON.parse(JSON.stringify(state.fasting));
+        appState.accounts[idx].logs = JSON.parse(JSON.stringify(state.logs));
+    }
+    localStorage.setItem('litefit_state', JSON.stringify(appState));
 }
 
 function loadStateFromLocalStorage() {
     const saved = localStorage.getItem('litefit_state');
+    let isMigrationNeeded = false;
+    
     if (saved) {
         try {
-            state = JSON.parse(saved);
-            // 兼容性防呆设计：如果某些必要字段丢失，补充默认值
-            if (!state.profile) state.profile = {};
-            if (!state.water) state.water = { current: 0, target: 2000 };
-            if (!state.fasting) state.fasting = { isActive: false, planHours: 16, startTime: null, endTime: null };
-            if (!state.logs) state.logs = [];
+            const parsed = JSON.parse(saved);
+            // 判断是否是旧版本单账号数据格式
+            if (parsed && !parsed.accounts) {
+                // 旧的格式，需要平滑升级
+                appState.accounts = [{
+                    id: 'default',
+                    name: '我的减脂账号',
+                    avatar: '👦',
+                    profile: parsed.profile || {
+                        gender: 'male',
+                        age: 25,
+                        height: 175,
+                        weight: 70.0,
+                        targetWeight: 65.0,
+                        activity: 1.375,
+                        speed: 500,
+                        budget: 1800
+                    },
+                    water: parsed.water || { current: 0, target: 2000 },
+                    fasting: parsed.fasting || { isActive: false, planHours: 16, startTime: null, endTime: null },
+                    logs: parsed.logs || []
+                }];
+                appState.currentAccountId = 'default';
+                isMigrationNeeded = true;
+            } else {
+                appState = parsed;
+            }
         } catch (e) {
             console.error('加载本地存储失败，重置为默认值。', e);
-            initDemoData();
+            initDefaultAppState();
         }
     } else {
-        // 无数据，则初始化演示数据，增加体验感
-        initDemoData();
+        initDefaultAppState();
     }
+    
+    // 如果没有账号，或账户列表为空，进行防御初始化
+    if (!appState.accounts || appState.accounts.length === 0) {
+        initDefaultAppState();
+    }
+    
+    // 检查 currentAccountId 是否存在，如果不存在，默认用第一个
+    if (!appState.currentAccountId || !appState.accounts.some(acc => acc.id === appState.currentAccountId)) {
+        appState.currentAccountId = appState.accounts[0].id;
+    }
+    
+    // 将当前选中的账户数据解包赋给局部 state
+    const currentAcc = appState.accounts.find(acc => acc.id === appState.currentAccountId) || appState.accounts[0];
+    
+    state.profile = JSON.parse(JSON.stringify(currentAcc.profile || {}));
+    state.water = JSON.parse(JSON.stringify(currentAcc.water || { current: 0, target: 2000 }));
+    state.fasting = JSON.parse(JSON.stringify(currentAcc.fasting || { isActive: false, planHours: 16, startTime: null, endTime: null }));
+    state.logs = JSON.parse(JSON.stringify(currentAcc.logs || []));
+    
+    // 防呆兜底
+    if (!state.profile.budget) {
+        state.profile = {
+            gender: 'male',
+            age: 25,
+            height: 175,
+            weight: 70.0,
+            targetWeight: 65.0,
+            activity: 1.375,
+            speed: 500,
+            budget: 1800
+        };
+    }
+    
+    if (isMigrationNeeded) {
+        saveStateToLocalStorage();
+    }
+}
+
+function initDefaultAppState() {
+    appState = {
+        accounts: [{
+            id: 'default',
+            name: '我的减脂账号',
+            avatar: '👦',
+            profile: {
+                gender: 'male',
+                age: 25,
+                height: 175,
+                weight: 70.0,
+                targetWeight: 65.0,
+                activity: 1.375,
+                speed: 500,
+                budget: 1800
+            },
+            water: { current: 0, target: 2000 },
+            fasting: { isActive: false, planHours: 16, startTime: null, endTime: null },
+            logs: [] // 初始无任何打卡记录
+        }],
+        currentAccountId: 'default'
+    };
+    saveStateToLocalStorage();
 }
 
 // 4. 计算器核心逻辑 (BMR / TDEE / 推荐热量预算)
@@ -115,8 +212,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 初始化各个 Tab 切换
     initNavigation();
     
-    // 初始化个人设置表单默认值
+    // 初始化个人设置表单 (绑定事件并填充数据)
     initProfileForm();
+    updateProfileFormUI();
+    
+    // 初始化家庭成员账户管理
+    initAccountEvents();
+    renderAccountsUI();
     
     // 渲染今日面板和喝水进度
     updateTodayDashboard();
@@ -650,22 +752,7 @@ function closeModal(modalId) {
 // 模块 E: 身体档案与计算器 (Calculator & Profile)
 // ==========================================
 function initProfileForm() {
-    const profile = state.profile;
-    
-    if (profile.gender) document.getElementById('calc-gender').value = profile.gender;
-    if (profile.age) document.getElementById('calc-age').value = profile.age;
-    if (profile.height) document.getElementById('calc-height').value = profile.height;
-    if (profile.weight) document.getElementById('calc-weight').value = profile.weight;
-    if (profile.targetWeight) document.getElementById('calc-target-weight').value = profile.targetWeight;
-    if (profile.activity) document.getElementById('calc-activity').value = profile.activity;
-    if (profile.speed) document.getElementById('calc-plan-speed').value = profile.speed;
-    
-    // 如果已经有个人档案计算数据，显示计算结果卡片
-    if (profile.bmi) {
-        showCalculatorResults(profile.bmi, profile.bmr, profile.tdee, profile.budget);
-    }
-
-    // 绑定计算表单提交
+    // 绑定计算表单提交 (只绑定一次)
     document.getElementById('calculator-form').addEventListener('submit', (e) => {
         e.preventDefault();
         
@@ -705,6 +792,25 @@ function initProfileForm() {
         // 自动滚动到计算结果
         document.getElementById('calc-results-card').scrollIntoView({ behavior: 'smooth' });
     });
+}
+
+function updateProfileFormUI() {
+    const profile = state.profile;
+    
+    document.getElementById('calc-gender').value = profile.gender || 'male';
+    document.getElementById('calc-age').value = profile.age || '';
+    document.getElementById('calc-height').value = profile.height || '';
+    document.getElementById('calc-weight').value = profile.weight || '';
+    document.getElementById('calc-target-weight').value = profile.targetWeight || '';
+    document.getElementById('calc-activity').value = profile.activity || '1.375';
+    document.getElementById('calc-plan-speed').value = profile.speed || '500';
+    
+    // 如果已经有个人档案计算数据，显示计算结果卡片
+    if (profile.bmi) {
+        showCalculatorResults(profile.bmi, profile.bmr, profile.tdee, profile.budget);
+    } else {
+        document.getElementById('calc-results-card').style.display = 'none';
+    }
 }
 
 // 供体重变动时自动重新计算卡路里预算使用
@@ -1085,3 +1191,235 @@ function triggerConfetti() {
         });
     }
 }
+
+// ==========================================
+// 模块 I: 本地多账号管理 (Local Multi-Account Management)
+// ==========================================
+let newAccountAvatar = '👦'; // 默认头像
+
+function initAccountEvents() {
+    const avatarItems = document.querySelectorAll('#new-account-avatar-selector .avatar-select-item');
+    avatarItems.forEach(item => {
+        item.addEventListener('click', () => {
+            avatarItems.forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+            newAccountAvatar = item.getAttribute('data-avatar');
+        });
+    });
+
+    // 绑定模态弹窗打开与关闭
+    const btnOpen = document.getElementById('btn-add-account-modal');
+    const modal = document.getElementById('modal-account');
+    const btnClose = document.getElementById('modal-account-close');
+
+    if (btnOpen) {
+        btnOpen.addEventListener('click', () => {
+            modal.classList.add('active');
+            // 每次打开重置头像选择为默认的👦
+            avatarItems.forEach(i => i.classList.remove('active'));
+            const defaultAvatarItem = document.querySelector('#new-account-avatar-selector .avatar-select-item[data-avatar="👦"]');
+            if (defaultAvatarItem) defaultAvatarItem.classList.add('active');
+            newAccountAvatar = '👦';
+        });
+    }
+
+    if (btnClose) {
+        btnClose.addEventListener('click', () => {
+            modal.classList.remove('active');
+        });
+    }
+
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('active');
+            }
+        });
+    }
+
+    // 提交创建账号
+    const accountForm = document.getElementById('account-form');
+    if (accountForm) {
+        accountForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const nicknameInput = document.getElementById('account-nickname');
+            const nickname = nicknameInput.value.trim();
+            if (!nickname) return;
+
+            const newAccId = 'account-' + Date.now();
+            const newAcc = {
+                id: newAccId,
+                name: nickname,
+                avatar: newAccountAvatar,
+                profile: {
+                    gender: 'male',
+                    age: 25,
+                    height: 175,
+                    weight: 70.0,
+                    targetWeight: 65.0,
+                    activity: 1.375,
+                    speed: 500,
+                    budget: 1800
+                },
+                water: { current: 0, target: 2000 },
+                fasting: { isActive: false, planHours: 16, startTime: null, endTime: null },
+                logs: []
+            };
+
+            // 1. 保存当前活跃账户的数据
+            saveStateToLocalStorage();
+
+            // 2. 插入新账户并设为当前活跃
+            appState.accounts.push(newAcc);
+            appState.currentAccountId = newAccId;
+
+            // 3. 序列化保存并重载解包
+            saveStateToLocalStorage();
+            loadStateFromLocalStorage();
+
+            // 4. 重置新账号的断食倒计时界面 (跨账号防干扰)
+            if (fastingTimerInterval) {
+                clearInterval(fastingTimerInterval);
+            }
+            document.getElementById('fasting-countdown').textContent = '00:00:00';
+            document.getElementById('fasting-state-label').textContent = '未开始';
+            document.getElementById('fasting-time-type').textContent = '断食倒计时';
+            const fastingTimeInfo = document.getElementById('fasting-time-info');
+            if (fastingTimeInfo) fastingTimeInfo.style.display = 'none';
+            
+            const btnToggleFasting = document.getElementById('btn-toggle-fasting');
+            if (btnToggleFasting) {
+                btnToggleFasting.textContent = '开始断食';
+                btnToggleFasting.className = 'btn btn-purple btn-lg';
+            }
+            document.querySelectorAll('.stage-item').forEach(item => item.classList.remove('active'));
+            const timerRing = document.getElementById('timer-ring-bar');
+            if (timerRing) {
+                timerRing.style.strokeDashoffset = TIMER_RING_CIRCUMFERENCE;
+            }
+
+            // 5. 刷新整个系统的 UI
+            updateTodayDashboard();
+            renderAllCharts();
+            renderHistoryLogs();
+            updateProfileFormUI();
+            renderAccountsUI();
+
+            // 6. 关闭 Modal 并重置输入
+            modal.classList.remove('active');
+            accountForm.reset();
+
+            // 7. 烟花庆祝
+            triggerConfetti();
+        });
+    }
+}
+
+function renderAccountsUI() {
+    if (!appState.accounts || appState.accounts.length === 0) return;
+    const currentAcc = appState.accounts.find(acc => acc.id === appState.currentAccountId) || appState.accounts[0];
+    
+    // 渲染当前活跃成员
+    const currentAvatarEl = document.getElementById('current-account-avatar');
+    const currentNameEl = document.getElementById('current-account-name');
+    if (currentAvatarEl) currentAvatarEl.textContent = currentAcc.avatar;
+    if (currentNameEl) currentNameEl.textContent = currentAcc.name;
+
+    // 渲染其他成员账号列表
+    const container = document.getElementById('other-accounts-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const others = appState.accounts.filter(acc => acc.id !== appState.currentAccountId);
+    if (others.length === 0) {
+        container.innerHTML = '<p style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 10px 0;">暂无其他家庭成员账号</p>';
+        return;
+    }
+
+    others.forEach(acc => {
+        const item = document.createElement('div');
+        item.className = 'account-item';
+        item.innerHTML = `
+            <div class="account-item-left">
+                <span class="account-avatar-small">${acc.avatar}</span>
+                <span class="account-name-small">${acc.name}</span>
+            </div>
+            <div class="account-actions">
+                <button class="btn-switch-account" data-id="${acc.id}">切换</button>
+                <button class="btn-delete-account" data-id="${acc.id}" title="删除账号">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(item);
+    });
+
+    // 绑定切换按钮
+    container.querySelectorAll('.btn-switch-account').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const accId = btn.getAttribute('data-id');
+            
+            // 清除可能正在运行的断食定时器
+            if (fastingTimerInterval) {
+                clearInterval(fastingTimerInterval);
+            }
+
+            // 保存当前数据，切换 ID，重新加载
+            saveStateToLocalStorage();
+            appState.currentAccountId = accId;
+            saveStateToLocalStorage();
+            loadStateFromLocalStorage();
+
+            // 联动刷新所有 UI
+            updateTodayDashboard();
+            resumeFastingTimer();
+            renderAllCharts();
+            renderHistoryLogs();
+            updateProfileFormUI();
+            renderAccountsUI();
+
+            // 烟花庆祝
+            triggerConfetti();
+        });
+    });
+
+    // 绑定删除按钮
+    container.querySelectorAll('.btn-delete-account').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const accId = btn.getAttribute('data-id');
+            const targetAcc = appState.accounts.find(acc => acc.id === accId);
+            if (!targetAcc) return;
+
+            if (confirm(`确定要删除家庭成员「${targetAcc.name}」吗？其对应的所有减脂、喝水和体重数据都将被永久抹去，不可恢复！`)) {
+                // 清除断食定时器 (以防删除的账号有活跃的定时器，其实删除的不是当前账号，但稳妥起见)
+                if (appState.currentAccountId === accId && fastingTimerInterval) {
+                    clearInterval(fastingTimerInterval);
+                }
+
+                // 移除
+                appState.accounts = appState.accounts.filter(acc => acc.id !== accId);
+                
+                // 如果删除了当前账号，切换到第一个
+                if (appState.currentAccountId === accId) {
+                    if (appState.accounts.length > 0) {
+                        appState.currentAccountId = appState.accounts[0].id;
+                    } else {
+                        initDefaultAppState();
+                    }
+                }
+
+                saveStateToLocalStorage();
+                loadStateFromLocalStorage();
+
+                // 联动刷新
+                updateTodayDashboard();
+                resumeFastingTimer();
+                renderAllCharts();
+                renderHistoryLogs();
+                updateProfileFormUI();
+                renderAccountsUI();
+            }
+        });
+    });
+}
+

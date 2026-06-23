@@ -371,6 +371,29 @@
                     </div>
                 </div>
 
+                <!-- 账户管理 -->
+                <div class="card account-manage-card">
+                    <h3 class="section-title"><i class="fa-solid fa-users"></i> 家庭成员账户管理</h3>
+                    <div class="active-account-box">
+                        <div class="account-item-left">
+                            <span class="account-avatar-large" id="current-account-avatar">👦</span>
+                            <div class="account-details">
+                                <span class="account-name-large" id="current-account-name">我的减脂账号</span>
+                                <span class="account-status-tag">当前活跃成员</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 其他成员账号列表 -->
+                    <div class="account-list" id="other-accounts-list">
+                        <!-- 动态渲染 -->
+                    </div>
+
+                    <button class="btn btn-purple btn-sm btn-block mt-15" id="btn-add-account-modal">
+                        <i class="fa-solid fa-plus mr-5"></i>添加家庭新成员
+                    </button>
+                </div>
+
                 <!-- 系统数据管理 -->
                 <div class="card data-manage-card">
                     <h3 class="section-title"><i class="fa-solid fa-database"></i> 数据管理</h3>
@@ -476,6 +499,38 @@
                     <input type="number" step="0.1" id="bodyfat-value" placeholder="例如：18.5" min="1" max="80">
                 </div>
                 <button type="submit" class="btn btn-pink btn-block mt-20">保存记录</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 弹窗 4：添加新成员 -->
+    <div class="modal-overlay" id="modal-account">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-users color-purple mr-5"></i> 添加家庭新成员</h3>
+                <button class="modal-close-btn" id="modal-account-close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="account-form">
+                <div class="form-group">
+                    <label for="account-nickname">成员昵称</label>
+                    <input type="text" id="account-nickname" placeholder="例如：爸爸、妈妈、我的昵称" required>
+                </div>
+                <div class="form-group mt-10">
+                    <label>选择角色头像</label>
+                    <div class="avatar-selector" id="new-account-avatar-selector">
+                        <span class="avatar-select-item active" data-avatar="👦">👦</span>
+                        <span class="avatar-select-item" data-avatar="👧">👧</span>
+                        <span class="avatar-select-item" data-avatar="👨">👨</span>
+                        <span class="avatar-select-item" data-avatar="👩">👩</span>
+                        <span class="avatar-select-item" data-avatar="👵">👵</span>
+                        <span class="avatar-select-item" data-avatar="👴">👴</span>
+                        <span class="avatar-select-item" data-avatar="🦖">🦖</span>
+                        <span class="avatar-select-item" data-avatar="🐱">🐱</span>
+                        <span class="avatar-select-item" data-avatar="🐶">🐶</span>
+                        <span class="avatar-select-item" data-avatar="🥑">🥑</span>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-purple btn-block mt-20">保存成员账号</button>
             </form>
         </div>
     </div>
