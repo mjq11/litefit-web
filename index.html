@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="轻盈减脂助手 - 一款开箱即用的高颜值减肥与健康追踪应用。支持体重追踪、饮食运动记账、间歇性断食倒计时与TDEE减脂计算。">
+    <title>轻盈减脂助手 | LiteFit</title>
+    
+    <!-- 引入 Outfit 和 Inter 字体 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- 引入 Font Awesome 图标 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- 引入本地样式文件 -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-wrapper">
+        <!-- 头部 Header -->
+        <header class="app-header">
+            <div class="header-logo">
+                <div class="logo-icon"><i class="fa-solid fa-fire-flame-curved"></i></div>
+                <div class="logo-text">
+                    <h1>轻盈减脂助手</h1>
+                    <span class="logo-sub">LiteFit Tracker</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button id="btn-export-data" class="header-btn" title="导出数据"><i class="fa-solid fa-file-export"></i></button>
+                <button id="btn-import-data" class="header-btn" title="导入数据"><i class="fa-solid fa-file-import"></i></button>
+                <input type="file" id="file-import-input" style="display: none;" accept=".json">
+            </div>
+        </header>
+
+        <!-- 主内容区域 -->
+        <main class="app-main">
+            <!-- 1. 今日概览 Tab -->
+            <section id="tab-today" class="tab-content active">
+                <!-- 卡路里进度卡片 -->
+                <div class="card calorie-hero-card">
+                    <div class="calorie-progress-container">
+                        <svg class="progress-ring" width="180" height="180">
+                            <circle class="progress-ring-circle-bg" stroke="rgba(255,255,255,0.05)" stroke-width="12" fill="transparent" r="76" cx="90" cy="90"/>
+                            <circle id="progress-ring-bar" class="progress-ring-circle-bar" stroke="url(#gradient-green)" stroke-width="12" stroke-linecap="round" fill="transparent" r="76" cx="90" cy="90"/>
+                            <defs>
+                                <linearGradient id="gradient-green" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#34d399" />
+                                    <stop offset="100%" stop-color="#10b981" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <div class="calorie-text-overlay">
+                            <span class="calorie-label">剩余预算</span>
+                            <span id="calorie-remaining" class="calorie-num">2000</span>
+                            <span class="calorie-unit">千卡 (kcal)</span>
+                        </div>
+                    </div>
+                    <div class="calorie-equation">
+                        <div class="equation-item">
+                            <span class="eq-val" id="calorie-target">2000</span>
+                            <span class="eq-lbl">推荐目标</span>
+                        </div>
+                        <div class="equation-sign">-</div>
+                        <div class="equation-item">
+                            <span class="eq-val" id="calorie-intake">0</span>
+                            <span class="eq-lbl">今日饮食</span>
+                        </div>
+                        <div class="equation-sign">+</div>
+                        <div class="equation-item">
+                            <span class="eq-val" id="calorie-burn">0</span>
+                            <span class="eq-lbl">今日运动</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 核心数据网格 -->
+                <div class="data-grid">
+                    <!-- 饮食打卡 -->
+                    <div class="card data-card border-green" id="card-intake">
+                        <div class="data-card-header">
+                            <div class="card-icon bg-green-dim"><i class="fa-solid fa-utensils"></i></div>
+                            <span class="card-title">饮食摄入</span>
+                        </div>
+                        <div class="data-card-body">
+                            <span class="data-num color-green" id="dash-intake-val">0</span>
+                            <span class="data-unit">kcal</span>
+                        </div>
+                        <button class="btn btn-green btn-sm btn-block mt-10" id="btn-add-food">
+                            <i class="fa-solid fa-plus mr-5"></i>记录饮食
+                        </button>
+                    </div>
+
+                    <!-- 运动消耗 -->
+                    <div class="card data-card border-purple" id="card-burn">
+                        <div class="data-card-header">
+                            <div class="card-icon bg-purple-dim"><i class="fa-solid fa-dumbbell"></i></div>
+                            <span class="card-title">运动消耗</span>
+                        </div>
+                        <div class="data-card-body">
+                            <span class="data-num color-purple" id="dash-burn-val">0</span>
+                            <span class="data-unit">kcal</span>
+                        </div>
+                        <button class="btn btn-purple btn-sm btn-block mt-10" id="btn-add-exercise">
+                            <i class="fa-solid fa-plus mr-5"></i>记录运动
+                        </button>
+                    </div>
+
+                    <!-- 体重记录 -->
+                    <div class="card data-card border-pink" id="card-weight">
+                        <div class="data-card-header">
+                            <div class="card-icon bg-pink-dim"><i class="fa-solid fa-scale-balanced"></i></div>
+                            <span class="card-title">今日体重</span>
+                        </div>
+                        <div class="data-card-body">
+                            <span class="data-num color-pink" id="dash-weight-val">--.-</span>
+                            <span class="data-unit">kg</span>
+                        </div>
+                        <button class="btn btn-pink btn-sm btn-block mt-10" id="btn-record-weight">
+                            <i class="fa-solid fa-plus mr-5"></i>称重打卡
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 喝水打卡卡片 -->
+                <div class="card water-card">
+                    <div class="water-header">
+                        <div class="water-title">
+                            <i class="fa-solid fa-glass-water color-blue"></i>
+                            <h3>喝水追踪</h3>
+                        </div>
+                        <span class="water-progress-text"><span id="water-current">0</span> / <span id="water-target">2000</span> ml</span>
+                    </div>
+                    <div class="water-cup-container">
+                        <div class="water-cup-wrapper">
+                            <!-- 水杯外框 -->
+                            <div class="water-cup">
+                                <div class="water-wave" id="water-wave-element" style="height: 0%;"></div>
+                            </div>
+                        </div>
+                        <div class="water-controls">
+                            <button class="btn btn-blue btn-circle" id="btn-drink-water" title="喝一杯水 (+250ml)">
+                                <i class="fa-solid fa-plus"></i>
+                            </button>
+                            <span class="water-btn-hint">+250ml</span>
+                            <button class="btn btn-outline-gray btn-xs mt-15" id="btn-reset-water">重置</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. 间歇性断食 Tab -->
+            <section id="tab-fasting" class="tab-content">
+                <!-- 方案选择器 -->
+                <div class="card fasting-plans-card">
+                    <h3 class="section-title"><i class="fa-solid fa-sliders"></i> 选择断食方案</h3>
+                    <div class="plans-selector">
+                        <label class="plan-option active">
+                            <input type="radio" name="fasting-plan" value="16" checked>
+                            <span class="plan-tag">16:8</span>
+                            <span class="plan-name">限时进食</span>
+                            <span class="plan-desc">断食 16小时，进食 8小时</span>
+                        </label>
+                        <label class="plan-option">
+                            <input type="radio" name="fasting-plan" value="18">
+                            <span class="plan-tag">18:6</span>
+                            <span class="plan-name">黄金燃脂</span>
+                            <span class="plan-desc">断食 18小时，进食 6小时</span>
+                        </label>
+                        <label class="plan-option">
+                            <input type="radio" name="fasting-plan" value="20">
+                            <span class="plan-tag">20:4</span>
+                            <span class="plan-name">战士断食</span>
+                            <span class="plan-desc">断食 20小时，进食 4小时</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 断食大表盘 -->
+                <div class="card fasting-timer-card">
+                    <div class="timer-dial-container">
+                        <svg class="timer-ring" width="220" height="220">
+                            <circle class="timer-ring-circle-bg" stroke="rgba(255,255,255,0.05)" stroke-width="10" fill="transparent" r="95" cx="110" cy="110"/>
+                            <circle id="timer-ring-bar" class="timer-ring-circle-bar" stroke="url(#gradient-purple)" stroke-width="10" stroke-linecap="round" fill="transparent" r="95" cx="110" cy="110"/>
+                            <defs>
+                                <linearGradient id="gradient-purple" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#a78bfa" />
+                                    <stop offset="100%" stop-color="#8b5cf6" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <div class="timer-text-overlay">
+                            <span id="fasting-state-label" class="timer-state">未开始</span>
+                            <span id="fasting-countdown" class="timer-time">00:00:00</span>
+                            <span id="fasting-time-type" class="timer-sub-label">断食倒计时</span>
+                        </div>
+                    </div>
+
+                    <div class="timer-timeline-info" id="fasting-time-info" style="display: none;">
+                        <div class="info-block">
+                            <span class="info-lbl">开始时间</span>
+                            <span class="info-val" id="fasting-start-time">--:--</span>
+                        </div>
+                        <div class="info-divider"></div>
+                        <div class="info-block">
+                            <span class="info-lbl">预计结束</span>
+                            <span class="info-val" id="fasting-end-time">--:--</span>
+                        </div>
+                    </div>
+
+                    <div class="timer-actions">
+                        <button class="btn btn-purple btn-lg" id="btn-toggle-fasting">开始断食</button>
+                    </div>
+                </div>
+
+                <!-- 生理状态科普卡片 -->
+                <div class="card science-card">
+                    <h3 class="section-title"><i class="fa-solid fa-flask"></i> 身体当前生理状态</h3>
+                    <div class="science-stages" id="science-stages-container">
+                        <div class="stage-item" data-hours="4">
+                            <div class="stage-dot"></div>
+                            <div class="stage-info">
+                                <h4 class="stage-title">血糖下降 (0 ~ 4小时)</h4>
+                                <p class="stage-desc">进入空腹状态，胰岛素水平开始下降，身体开始消耗循环中的葡萄糖。</p>
+                            </div>
+                        </div>
+                        <div class="stage-item" data-hours="8">
+                            <div class="stage-dot"></div>
+                            <div class="stage-info">
+                                <h4 class="stage-title">过渡与糖原耗尽 (4 ~ 12小时)</h4>
+                                <p class="stage-desc">肝脏糖原基本耗尽，胰岛素进一步降低，身体准备切换到脂肪供能模式。</p>
+                            </div>
+                        </div>
+                        <div class="stage-item" data-hours="12">
+                            <div class="stage-dot"></div>
+                            <div class="stage-info">
+                                <h4 class="stage-title">脂肪燃烧期 (12 ~ 18小时)</h4>
+                                <p class="stage-desc">血液中游离脂肪酸增加。肝脏开始产生酮体，脂肪分解与消耗率快速上升。</p>
+                            </div>
+                        </div>
+                        <div class="stage-item" data-hours="18">
+                            <div class="stage-dot"></div>
+                            <div class="stage-info">
+                                <h4 class="stage-title">自噬启动与生长激素 (18+ 小时)</h4>
+                                <p class="stage-desc">细胞自噬机制启动，开始修复受损蛋白质与细胞器；生长激素水平显著升高，有助于保护肌肉。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. 数据分析 Tab -->
+            <section id="tab-analytics" class="tab-content">
+                <!-- 体重趋势图表 -->
+                <div class="card chart-card">
+                    <div class="chart-header">
+                        <h3 class="section-title"><i class="fa-solid fa-chart-line color-pink"></i> 体重追踪曲线</h3>
+                        <span class="chart-stats-summary" id="weight-loss-total">累计减重: -- kg</span>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="weightChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 卡路里对比图表 -->
+                <div class="card chart-card">
+                    <div class="chart-header">
+                        <h3 class="section-title"><i class="fa-solid fa-chart-bar color-green"></i> 近7天热量对比</h3>
+                        <span class="chart-legend"><i class="fa-solid fa-circle text-green mr-5"></i>摄入 <i class="fa-solid fa-circle text-purple ml-10 mr-5"></i>运动</span>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="calorieChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 历史打卡日志 -->
+                <div class="card history-card">
+                    <h3 class="section-title"><i class="fa-solid fa-clock-rotate-left"></i> 历史打卡日志</h3>
+                    <div class="history-list" id="history-items-container">
+                        <!-- 动态渲染 -->
+                        <div class="empty-state">
+                            <i class="fa-solid fa-clipboard-list empty-icon"></i>
+                            <p>今天还没有任何打卡记录哦，去记一笔吧！</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. 身体档案与计算器 Tab -->
+            <section id="tab-profile" class="tab-content">
+                <!-- 计算器输入 -->
+                <div class="card profile-card">
+                    <h3 class="section-title"><i class="fa-solid fa-calculator"></i> 减脂方案计算器</h3>
+                    <form id="calculator-form" class="calc-form">
+                        <div class="form-group-row">
+                            <div class="form-group">
+                                <label for="calc-gender">性别</label>
+                                <select id="calc-gender" required>
+                                    <option value="male">男 (Male)</option>
+                                    <option value="female">女 (Female)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="calc-age">年龄</label>
+                                <input type="number" id="calc-age" placeholder="例如: 25" min="1" max="120" required>
+                            </div>
+                        </div>
+                        <div class="form-group-row">
+                            <div class="form-group">
+                                <label for="calc-height">身高 (cm)</label>
+                                <input type="number" id="calc-height" placeholder="例如: 175" min="50" max="250" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="calc-weight">当前体重 (kg)</label>
+                                <input type="number" id="calc-weight" step="0.1" placeholder="例如: 75.5" min="20" max="300" required>
+                            </div>
+                        </div>
+                        <div class="form-group-row">
+                            <div class="form-group">
+                                <label for="calc-target-weight">目标体重 (kg)</label>
+                                <input type="number" id="calc-target-weight" step="0.1" placeholder="例如: 65" min="20" max="300" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="calc-activity">日常活动系数</label>
+                                <select id="calc-activity" required>
+                                    <option value="1.2">久坐不动 (办公室工作 / 几乎不运动)</option>
+                                    <option value="1.375">轻度运动 (每周运动 1-3 次)</option>
+                                    <option value="1.55">中度运动 (每周运动 3-5 次 / 强度适中)</option>
+                                    <option value="1.725">重度运动 (每周运动 6-7 次 / 高强度)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="calc-plan-speed">减脂期望速度</label>
+                            <select id="calc-plan-speed" required>
+                                <option value="300">温和减脂 (每日热量缺口 300 kcal)</option>
+                                <option value="500" selected>标准减脂 (每日热量缺口 500 kcal)</option>
+                                <option value="750">极速减脂 (每日热量缺口 750 kcal)</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-green btn-block mt-15"><i class="fa-solid fa-calculator mr-5"></i>计算身体指数 & 预算</button>
+                    </form>
+                </div>
+
+                <!-- 计算结果显示 -->
+                <div class="card result-card" id="calc-results-card" style="display: none;">
+                    <h3 class="section-title"><i class="fa-solid fa-square-poll-vertical"></i> 身体指数计算结果</h3>
+                    <div class="results-grid">
+                        <div class="result-box">
+                            <span class="res-lbl">BMI 指数</span>
+                            <span class="res-val" id="res-bmi">24.5</span>
+                            <span class="res-badge badge-normal" id="res-bmi-tag">正常</span>
+                        </div>
+                        <div class="result-box">
+                            <span class="res-lbl">基础代谢 (BMR)</span>
+                            <span class="res-val" id="res-bmr">1650</span>
+                            <span class="res-unit">kcal / 日</span>
+                        </div>
+                        <div class="result-box">
+                            <span class="res-lbl">日常消耗 (TDEE)</span>
+                            <span class="res-val" id="res-tdee">2200</span>
+                            <span class="res-unit">kcal / 日</span>
+                        </div>
+                        <div class="result-box highlighted-box">
+                            <span class="res-lbl">推荐每日卡路里预算</span>
+                            <span class="res-val color-green" id="res-budget">1700</span>
+                            <span class="res-unit">kcal / 日</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 系统数据管理 -->
+                <div class="card data-manage-card">
+                    <h3 class="section-title"><i class="fa-solid fa-database"></i> 数据管理</h3>
+                    <p class="card-intro-text">所有的健康数据仅保存在您本地浏览器的 LocalStorage 中，我们不会将您的任何数据上传到服务器。</p>
+                    <div class="data-manage-actions">
+                        <button class="btn btn-outline-gray" id="btn-export-settings"><i class="fa-solid fa-download mr-5"></i>备份导出</button>
+                        <button class="btn btn-outline-pink" id="btn-clear-data"><i class="fa-solid fa-trash-can mr-5"></i>清空所有本地数据</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 底部 Tab 导航栏 -->
+        <nav class="app-nav">
+            <button class="nav-item active" data-tab="tab-today" id="nav-btn-today">
+                <i class="fa-solid fa-house"></i>
+                <span>今日</span>
+            </button>
+            <button class="nav-item" data-tab="tab-fasting" id="nav-btn-fasting">
+                <i class="fa-solid fa-stopwatch"></i>
+                <span>断食</span>
+            </button>
+            <button class="nav-item" data-tab="tab-analytics" id="nav-btn-analytics">
+                <i class="fa-solid fa-chart-simple"></i>
+                <span>趋势</span>
+            </button>
+            <button class="nav-item" data-tab="tab-profile" id="nav-btn-profile">
+                <i class="fa-solid fa-user-gear"></i>
+                <span>设置</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- 弹窗 1：记录饮食 -->
+    <div class="modal-overlay" id="modal-food">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-utensils color-green mr-5"></i> 记录今日饮食</h3>
+                <button class="modal-close-btn" id="modal-food-close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="food-form">
+                <div class="form-group">
+                    <label for="food-type">餐次</label>
+                    <select id="food-type" required>
+                        <option value="breakfast">早餐 (Breakfast)</option>
+                        <option value="lunch" selected>午餐 (Lunch)</option>
+                        <option value="dinner">晚餐 (Dinner)</option>
+                        <option value="snack">加餐/零食 (Snack)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="food-name">食物描述 (选填)</label>
+                    <input type="text" id="food-name" placeholder="例如：燕麦牛奶、煎鸡胸肉、苹果">
+                </div>
+                <div class="form-group">
+                    <label for="food-calories">热量 (kcal)</label>
+                    <input type="number" id="food-calories" placeholder="输入食物的卡路里" min="1" max="5000" required>
+                </div>
+                <button type="submit" class="btn btn-green btn-block mt-20">保存记录</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 弹窗 2：记录运动 -->
+    <div class="modal-overlay" id="modal-exercise">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-dumbbell color-purple mr-5"></i> 记录今日运动</h3>
+                <button class="modal-close-btn" id="modal-exercise-close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="exercise-form">
+                <div class="form-group">
+                    <label for="exercise-name">运动项目</label>
+                    <input type="text" id="exercise-name" placeholder="例如：跑步、游泳、力量训练、跳绳" required>
+                </div>
+                <div class="form-group">
+                    <label for="exercise-calories">消耗热量 (kcal)</label>
+                    <input type="number" id="exercise-calories" placeholder="输入预计消耗的卡路里" min="1" max="5000" required>
+                </div>
+                <div class="form-group">
+                    <label for="exercise-duration">时长 (分钟，选填)</label>
+                    <input type="number" id="exercise-duration" placeholder="输入运动分钟数" min="1" max="480">
+                </div>
+                <button type="submit" class="btn btn-purple btn-block mt-20">保存记录</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 弹窗 3：记录体重 -->
+    <div class="modal-overlay" id="modal-weight">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-scale-balanced color-pink mr-5"></i> 记录当前体重</h3>
+                <button class="modal-close-btn" id="modal-weight-close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="weight-form">
+                <div class="form-group">
+                    <label for="weight-value">今日体重 (kg)</label>
+                    <input type="number" step="0.1" id="weight-value" placeholder="例如：68.5" min="20" max="300" required>
+                </div>
+                <div class="form-group">
+                    <label for="bodyfat-value">体脂率 (%，选填)</label>
+                    <input type="number" step="0.1" id="bodyfat-value" placeholder="例如：18.5" min="1" max="80">
+                </div>
+                <button type="submit" class="btn btn-pink btn-block mt-20">保存记录</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 外部库 CDN 引入 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- 本地业务逻辑脚本 -->
+    <script src="app.js"></script>
+</body>
+</html>
