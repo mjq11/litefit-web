@@ -174,7 +174,7 @@ function initDefaultAppState() {
 function calculateFitnessMetrics(gender, age, height, weight, targetWeight, activity, speed) {
     // 1. BMI 计算
     const heightInMeters = height / 100;
-    const bmi = (weight / (heightInMeters * heightInMeters)).toFixed(1);
+    const bmi = (weight / (heightInMeters * heightInMeters)).toFixed(2);
     
     // 2. BMR 计算 (Mifflin-St Jeor 公式)
     let bmr = 0;
@@ -282,7 +282,7 @@ function updateTodayDashboard() {
     // 1. 从日志中过滤出今天的饮食和运动
     let todayIntake = 0;
     let todayBurn = 0;
-    let todayWeight = '--.-';
+    let todayWeight = '--.--';
     
     state.logs.forEach(log => {
         const logDate = new Date(log.timestamp).toDateString();
@@ -292,18 +292,18 @@ function updateTodayDashboard() {
             } else if (log.type === 'exercise') {
                 todayBurn += log.value;
             } else if (log.type === 'weight') {
-                todayWeight = log.value.toFixed(1);
+                todayWeight = log.value.toFixed(2);
             }
         }
     });
 
     // 2. 如果今天没有打卡体重，寻找历史上最近的一条体重记录
-    if (todayWeight === '--.-') {
+    if (todayWeight === '--.--') {
         const weightLogs = state.logs.filter(log => log.type === 'weight');
         if (weightLogs.length > 0) {
             // 按时间排序，获取最新的一条
             weightLogs.sort((a, b) => b.timestamp - a.timestamp);
-            todayWeight = weightLogs[0].value.toFixed(1);
+            todayWeight = weightLogs[0].value.toFixed(2);
         }
     }
     
@@ -725,9 +725,9 @@ function bindModal(triggerId, modalId, closeId) {
             const weightLogs = state.logs.filter(log => log.type === 'weight');
             if (weightLogs.length > 0) {
                 weightLogs.sort((a, b) => b.timestamp - a.timestamp);
-                document.getElementById('weight-value').value = weightLogs[0].value;
+                document.getElementById('weight-value').value = weightLogs[0].value.toFixed(2);
             } else if (state.profile.weight) {
-                document.getElementById('weight-value').value = state.profile.weight;
+                document.getElementById('weight-value').value = state.profile.weight.toFixed(2);
             }
         }
     });
@@ -799,9 +799,9 @@ function updateProfileFormUI() {
     
     document.getElementById('calc-gender').value = profile.gender || 'male';
     document.getElementById('calc-age').value = profile.age || '';
-    document.getElementById('calc-height').value = profile.height || '';
-    document.getElementById('calc-weight').value = profile.weight || '';
-    document.getElementById('calc-target-weight').value = profile.targetWeight || '';
+    document.getElementById('calc-height').value = profile.height ? profile.height.toFixed(2) : '';
+    document.getElementById('calc-weight').value = profile.weight ? profile.weight.toFixed(2) : '';
+    document.getElementById('calc-target-weight').value = profile.targetWeight ? profile.targetWeight.toFixed(2) : '';
     document.getElementById('calc-activity').value = profile.activity || '1.375';
     document.getElementById('calc-plan-speed').value = profile.speed || '500';
     
@@ -898,14 +898,14 @@ function renderWeightChart() {
     if (weightLogs.length >= 2) {
         const startW = weightLogs[0].value;
         const currentW = weightLogs[weightLogs.length - 1].value;
-        const loss = (startW - currentW).toFixed(1);
+        const loss = (startW - currentW).toFixed(2);
         if (loss >= 0) {
             document.getElementById('weight-loss-total').textContent = `累计减重: ${loss} kg`;
         } else {
             document.getElementById('weight-loss-total').textContent = `累计增重: ${Math.abs(loss)} kg`;
         }
     } else {
-        document.getElementById('weight-loss-total').textContent = `累计减重: 0.0 kg`;
+        document.getElementById('weight-loss-total').textContent = `累计减重: 0.00 kg`;
     }
 
     if (weightChartInstance) {
@@ -1087,7 +1087,7 @@ function renderHistoryLogs() {
                 </div>
             </div>
             <div class="history-item-right">
-                <span class="hist-val">${log.value} ${unitText}</span>
+                <span class="hist-val">${log.type === 'weight' ? log.value.toFixed(2) : log.value} ${unitText}</span>
                 <button class="hist-delete-btn" data-id="${log.id}" title="删除记录">
                     <i class="fa-solid fa-trash-can"></i>
                 </button>
