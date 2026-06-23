@@ -40,47 +40,9 @@ let fastingTimerInterval = null;
 
 // 2. 初始化演示数据 (让用户在第一次打开应用时看到精美的图表效果)
 function initDemoData() {
-    const demoLogs = [];
-    const today = new Date();
-    
-    // 生成过去 7 天的体重、饮食、运动演示数据
-    for (let i = 7; i >= 1; i--) {
-        const date = new Date(today);
-        date.setDate(today.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
-        
-        // 递减体重数据
-        const calculatedWeight = (75.0 - (7 - i) * 0.2 + (Math.random() * 0.2 - 0.1)).toFixed(1);
-        demoLogs.push({
-            id: `demo-w-${i}`,
-            type: 'weight',
-            timestamp: new Date(`${dateStr}T08:00:00`).getTime(),
-            value: parseFloat(calculatedWeight),
-            extra: null
-        });
-
-        // 每日饮食摄入数据 (在 1600 - 2000 波动)
-        const intakeCal = Math.round(1750 + (Math.random() * 200 - 100));
-        demoLogs.push({
-            id: `demo-f-${i}-1`,
-            type: 'food',
-            timestamp: new Date(`${dateStr}T12:30:00`).getTime(),
-            value: intakeCal,
-            extra: '午餐/演示数据'
-        });
-
-        // 每日运动消耗数据 (在 200 - 500 波动)
-        const burnCal = Math.round(300 + (Math.random() * 150 - 75));
-        demoLogs.push({
-            id: `demo-e-${i}`,
-            type: 'exercise',
-            timestamp: new Date(`${dateStr}T19:00:00`).getTime(),
-            value: burnCal,
-            extra: '慢跑/演示数据'
-        });
-    }
-
-    state.logs = demoLogs;
+    state.logs = []; // 初始无记录，保持纯净空状态
+    state.water = { current: 0, target: 2000 };
+    state.fasting = { isActive: false, planHours: 16, startTime: null, endTime: null };
     
     // 保存初始数据
     saveStateToLocalStorage();
