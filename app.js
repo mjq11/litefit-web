@@ -1358,6 +1358,7 @@ function switchActiveAccount(accId) {
     // 保存当前数据，切换 ID，重新加载
     saveStateToLocalStorage();
     appState.currentAccountId = accId;
+    localStorage.setItem('litefit_state', JSON.stringify(appState));
     loadStateFromLocalStorage();
 
     // 联动刷新所有 UI
