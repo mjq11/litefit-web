@@ -29,6 +29,23 @@
                 </div>
             </div>
             <div class="header-actions">
+                <!-- 快捷账号切换 -->
+                <div class="header-user-switch" id="header-user-switch">
+                    <button class="user-switch-trigger" id="user-switch-trigger">
+                        <span class="user-avatar" id="header-user-avatar">👦</span>
+                        <span class="user-name" id="header-user-name">加载中...</span>
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                    <div class="user-switch-dropdown" id="user-switch-dropdown">
+                        <div class="dropdown-list" id="dropdown-accounts-list">
+                            <!-- 动态加载其他账户 -->
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <button class="dropdown-action-btn" id="dropdown-btn-add-account">
+                            <i class="fa-solid fa-user-plus mr-5"></i>添加家庭新成员
+                        </button>
+                    </div>
+                </div>
                 <button id="btn-export-data" class="header-btn" title="导出数据"><i class="fa-solid fa-file-export"></i></button>
                 <button id="btn-import-data" class="header-btn" title="导入数据"><i class="fa-solid fa-file-import"></i></button>
                 <input type="file" id="file-import-input" style="display: none;" accept=".json">

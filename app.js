@@ -1215,7 +1215,6 @@ function initAccountEvents() {
     if (btnOpen) {
         btnOpen.addEventListener('click', () => {
             modal.classList.add('active');
-            // 每次打开重置头像选择为默认的👦
             avatarItems.forEach(i => i.classList.remove('active'));
             const defaultAvatarItem = document.querySelector('#new-account-avatar-selector .avatar-select-item[data-avatar="👦"]');
             if (defaultAvatarItem) defaultAvatarItem.classList.add('active');
@@ -1233,6 +1232,41 @@ function initAccountEvents() {
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
                 modal.classList.remove('active');
+            }
+        });
+    }
+
+    // 头部快捷切换框下拉显示/隐藏绑定
+    const headerUserSwitch = document.getElementById('header-user-switch');
+    const userSwitchTrigger = document.getElementById('user-switch-trigger');
+    if (userSwitchTrigger && headerUserSwitch) {
+        userSwitchTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            headerUserSwitch.classList.toggle('active');
+        });
+    }
+
+    // 点击页面任意其他位置时，隐藏头部下拉列表
+    document.addEventListener('click', () => {
+        if (headerUserSwitch) {
+            headerUserSwitch.classList.remove('active');
+        }
+    });
+
+    // 绑定头部快捷添加账号按钮点击事件，调起相同的 Modal 弹窗
+    const dropdownBtnAddAccount = document.getElementById('dropdown-btn-add-account');
+    if (dropdownBtnAddAccount) {
+        dropdownBtnAddAccount.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (headerUserSwitch) {
+                headerUserSwitch.classList.remove('active');
+            }
+            if (modal) {
+                modal.classList.add('active');
+                avatarItems.forEach(i => i.classList.remove('active'));
+                const defaultAvatarItem = document.querySelector('#new-account-avatar-selector .avatar-select-item[data-avatar="👦"]');
+                if (defaultAvatarItem) defaultAvatarItem.classList.add('active');
+                newAccountAvatar = '👦';
             }
         });
     }
@@ -1274,7 +1308,7 @@ function initAccountEvents() {
             appState.currentAccountId = newAccId;
 
             // 3. 序列化保存并重载解包
-            saveStateToLocalStorage();
+            localStorage.setItem('litefit_state', JSON.stringify(appState));
             loadStateFromLocalStorage();
 
             // 4. 重置新账号的断食倒计时界面 (跨账号防干扰)
@@ -1306,7 +1340,7 @@ function initAccountEvents() {
             renderAccountsUI();
 
             // 6. 关闭 Modal 并重置输入
-            modal.classList.remove('active');
+            if (modal) modal.classList.remove('active');
             accountForm.reset();
 
             // 7. 烟花庆祝
@@ -1315,111 +1349,154 @@ function initAccountEvents() {
     }
 }
 
+function switchActiveAccount(accId) {
+    // 清除可能正在运行的断食定时器
+    if (fastingTimerInterval) {
+        clearInterval(fastingTimerInterval);
+    }
+
+    // 保存当前数据，切换 ID，重新加载
+    saveStateToLocalStorage();
+    appState.currentAccountId = accId;
+    loadStateFromLocalStorage();
+
+    // 联动刷新所有 UI
+    updateTodayDashboard();
+    resumeFastingTimer();
+    renderAllCharts();
+    renderHistoryLogs();
+    updateProfileFormUI();
+    renderAccountsUI();
+
+    // 烟花庆祝
+    triggerConfetti();
+}
+
+function deleteUserAccount(accId) {
+    const targetAcc = appState.accounts.find(acc => acc.id === accId);
+    if (!targetAcc) return;
+
+    if (confirm(`确定要删除家庭成员「${targetAcc.name}」吗？其对应的所有减脂、喝水和体重数据都将被永久抹去，不可恢复！`)) {
+        // 清除断食定时器 (以防删除的账号有活跃的定时器，其实删除的不是当前账号，但稳妥起见)
+        if (appState.currentAccountId === accId && fastingTimerInterval) {
+            clearInterval(fastingTimerInterval);
+        }
+
+        // 移除
+        appState.accounts = appState.accounts.filter(acc => acc.id !== accId);
+        
+        // 如果删除了当前账号，切换到第一个
+        if (appState.currentAccountId === accId) {
+            if (appState.accounts.length > 0) {
+                appState.currentAccountId = appState.accounts[0].id;
+            } else {
+                initDefaultAppState();
+            }
+        }
+
+        saveStateToLocalStorage();
+        loadStateFromLocalStorage();
+
+        // 联动刷新
+        updateTodayDashboard();
+        resumeFastingTimer();
+        renderAllCharts();
+        renderHistoryLogs();
+        updateProfileFormUI();
+        renderAccountsUI();
+    }
+}
+
 function renderAccountsUI() {
     if (!appState.accounts || appState.accounts.length === 0) return;
     const currentAcc = appState.accounts.find(acc => acc.id === appState.currentAccountId) || appState.accounts[0];
     
-    // 渲染当前活跃成员
+    // 渲染当前活跃成员（在设置 Tab 中的面板）
     const currentAvatarEl = document.getElementById('current-account-avatar');
     const currentNameEl = document.getElementById('current-account-name');
     if (currentAvatarEl) currentAvatarEl.textContent = currentAcc.avatar;
     if (currentNameEl) currentNameEl.textContent = currentAcc.name;
 
-    // 渲染其他成员账号列表
-    const container = document.getElementById('other-accounts-list');
-    if (!container) return;
-    container.innerHTML = '';
+    // 渲染当前活跃成员（在头部 Header 的快速切换栏中）
+    const headerAvatarEl = document.getElementById('header-user-avatar');
+    const headerNameEl = document.getElementById('header-user-name');
+    if (headerAvatarEl) headerAvatarEl.textContent = currentAcc.avatar;
+    if (headerNameEl) headerNameEl.textContent = currentAcc.name;
 
+    // 渲染设置 Tab 中的其他成员账号列表
+    const container = document.getElementById('other-accounts-list');
     const others = appState.accounts.filter(acc => acc.id !== appState.currentAccountId);
-    if (others.length === 0) {
-        container.innerHTML = '<p style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 10px 0;">暂无其他家庭成员账号</p>';
-        return;
+    
+    if (container) {
+        container.innerHTML = '';
+        if (others.length === 0) {
+            container.innerHTML = '<p style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 10px 0;">暂无其他家庭成员账号</p>';
+        } else {
+            others.forEach(acc => {
+                const item = document.createElement('div');
+                item.className = 'account-item';
+                item.innerHTML = `
+                    <div class="account-item-left">
+                        <span class="account-avatar-small">${acc.avatar}</span>
+                        <span class="account-name-small">${acc.name}</span>
+                    </div>
+                    <div class="account-actions">
+                        <button class="btn-switch-account" data-id="${acc.id}">切换</button>
+                        <button class="btn-delete-account" data-id="${acc.id}" title="删除账号">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+
+            // 绑定切换按钮
+            container.querySelectorAll('.btn-switch-account').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const accId = btn.getAttribute('data-id');
+                    switchActiveAccount(accId);
+                });
+            });
+
+            // 绑定删除按钮
+            container.querySelectorAll('.btn-delete-account').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const accId = btn.getAttribute('data-id');
+                    deleteUserAccount(accId);
+                });
+            });
+        }
     }
 
-    others.forEach(acc => {
-        const item = document.createElement('div');
-        item.className = 'account-item';
-        item.innerHTML = `
-            <div class="account-item-left">
-                <span class="account-avatar-small">${acc.avatar}</span>
-                <span class="account-name-small">${acc.name}</span>
-            </div>
-            <div class="account-actions">
-                <button class="btn-switch-account" data-id="${acc.id}">切换</button>
-                <button class="btn-delete-account" data-id="${acc.id}" title="删除账号">
-                    <i class="fa-solid fa-trash-can"></i>
-                </button>
-            </div>
-        `;
-        container.appendChild(item);
-    });
-
-    // 绑定切换按钮
-    container.querySelectorAll('.btn-switch-account').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const accId = btn.getAttribute('data-id');
+    // 动态渲染头部 Dropdown 中的账户列表
+    const dropdownList = document.getElementById('dropdown-accounts-list');
+    if (dropdownList) {
+        dropdownList.innerHTML = '';
+        
+        appState.accounts.forEach(acc => {
+            const isCurrent = acc.id === appState.currentAccountId;
+            const item = document.createElement('div');
+            item.className = 'dropdown-item';
+            item.setAttribute('data-id', acc.id);
+            item.innerHTML = `
+                <div class="dropdown-item-left">
+                    <span class="avatar-small">${acc.avatar}</span>
+                    <span class="name-small" title="${acc.name}">${acc.name}</span>
+                </div>
+                ${isCurrent ? '<span class="switch-badge">活跃</span>' : ''}
+            `;
             
-            // 清除可能正在运行的断食定时器
-            if (fastingTimerInterval) {
-                clearInterval(fastingTimerInterval);
+            if (!isCurrent) {
+                // 如果不是当前账号，点击后可以进行一键切换
+                item.addEventListener('click', () => {
+                    switchActiveAccount(acc.id);
+                    // 切换后关闭下拉框
+                    const headerUserSwitch = document.getElementById('header-user-switch');
+                    if (headerUserSwitch) headerUserSwitch.classList.remove('active');
+                });
             }
-
-            // 保存当前数据，切换 ID，重新加载
-            saveStateToLocalStorage();
-            appState.currentAccountId = accId;
-            saveStateToLocalStorage();
-            loadStateFromLocalStorage();
-
-            // 联动刷新所有 UI
-            updateTodayDashboard();
-            resumeFastingTimer();
-            renderAllCharts();
-            renderHistoryLogs();
-            updateProfileFormUI();
-            renderAccountsUI();
-
-            // 烟花庆祝
-            triggerConfetti();
+            dropdownList.appendChild(item);
         });
-    });
-
-    // 绑定删除按钮
-    container.querySelectorAll('.btn-delete-account').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const accId = btn.getAttribute('data-id');
-            const targetAcc = appState.accounts.find(acc => acc.id === accId);
-            if (!targetAcc) return;
-
-            if (confirm(`确定要删除家庭成员「${targetAcc.name}」吗？其对应的所有减脂、喝水和体重数据都将被永久抹去，不可恢复！`)) {
-                // 清除断食定时器 (以防删除的账号有活跃的定时器，其实删除的不是当前账号，但稳妥起见)
-                if (appState.currentAccountId === accId && fastingTimerInterval) {
-                    clearInterval(fastingTimerInterval);
-                }
-
-                // 移除
-                appState.accounts = appState.accounts.filter(acc => acc.id !== accId);
-                
-                // 如果删除了当前账号，切换到第一个
-                if (appState.currentAccountId === accId) {
-                    if (appState.accounts.length > 0) {
-                        appState.currentAccountId = appState.accounts[0].id;
-                    } else {
-                        initDefaultAppState();
-                    }
-                }
-
-                saveStateToLocalStorage();
-                loadStateFromLocalStorage();
-
-                // 联动刷新
-                updateTodayDashboard();
-                resumeFastingTimer();
-                renderAllCharts();
-                renderHistoryLogs();
-                updateProfileFormUI();
-                renderAccountsUI();
-            }
-        });
-    });
+    }
 }
 
